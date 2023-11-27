@@ -109,47 +109,6 @@ for i in range(5):
 #     host = socket.gethostbyname(socket.gethostname())
 #     app.run(debug=True, host=host, port=5001)
     
-#----------------------------------------------------------------------------
-# memory = ConversationBufferMemory(memory_key="chat_history", input_key="query")
-#     # chain = load_qa_chain(ChatOpenAI(temperature=0), chain_type="stuff", memory=memory, prompt=prompt)
-
-#     #----------------------------------------------------------------------------------
-
-# qa_chain = ConversationalRetrievalChain.from_llm(
-#         ChatOpenAI(),
-#         vectordb.as_retriever(search_kwargs={'k': 1}),
-#         return_source_documents=True
-# )
-
-# chat_history = []
-
-# @app.route('/data', methods=['POST'])
-# def send():
-#     global chat_history
-#     query = request.json.get('msg')
-#     # give us a way to exit the script
-#     if query == "exit" or query == "quit" or query == "q":
-#         print('Exiting')
-#         sys.exit()
-#     # we pass in the query to the LLM, and print out the response. As well as
-#     # our query, the context of semantically relevant information from our
-#     # vector store will be passed in, as well as list of our chat history
-#     full = f"{query} with old query : {' '.join([str(elem) for elem in chat_history])}"
-#     print(full)
-#     result = qa_chain({'question': full, 'chat_history': chat_history})
-#     print('Answer: ' + result['answer'])
-#     # we build up the chat_history list, based on our question and response
-#     # from the LLM, and the script then returns to the start of the loop
-#     # and is again ready to accept user input.
-#     chat_history.append((query, result['answer']))
-#     print(chat_history)
-
-#     return jsonify({'answer': result['answer'], 'chat_history': chat_history})
-
-
-# if __name__ == '__main__':
-#     host = socket.gethostbyname(socket.gethostname())
-#     app.run(debug=True, host=host, port=5001)
 
 
 
