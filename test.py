@@ -22,135 +22,49 @@ from dotenv import load_dotenv, find_dotenv
 _ = load_dotenv(find_dotenv()) # read local .env file
 
 openai.api_key  = os.environ['OPENAI_API_KEY']
+documents = []
 
 llm_name = "gpt-3.5-turbo"
 print(llm_name)
-loader = PyPDFLoader("data/wilee.pdf")
+loader = PyPDFLoader("data/Symtomp4.pdf")
 pages = loader.load()
+documents.extend(documents)
+
+documents = []
+for file in os.listdir('data'):
+    if file.endswith('.pdf'):
+        pdf_path = './data/' + file
+        loader = PyPDFLoader(pdf_path)
+        documents.extend(loader.load())
 
 text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 1500,
-        chunk_overlap = 150
+        chunk_size = 1000,
+        chunk_overlap = 10
     )
-splits = text_splitter.split_documents(pages)
 
-# Saving splits to a text file
-with open('splits_output.txt', 'w', encoding='utf-8') as file:
-    for split in splits:
-        try:
-            # Attempt to access common attributes or methods
-            if hasattr(split, 'get_text'):
-                text_content = split.get_text()
-            elif hasattr(split, 'text'):
-                text_content = split.text
-            elif hasattr(split, 'extract_text'):
-                text_content = split.extract_text()
-            else:
-                text_content = str(split)  # Fallback if no known method/attribute is found
-
-            file.write(text_content + '\n\n')
-        except Exception as e:
-            print(f"Error processing split: {e}")
-
-
-
-kept = []
-for i in splits:
-    kept.append(i)
-
-def remove_metadata_from_string(text):
-    # Split the text at 'metadata='
-    parts = text.split("metadata=")
-    
-    # Return the first part (text before 'metadata='), if it exists
-    return parts[0].strip() if parts else text
-
-# Convert each element in 'kept' to string and remove metadata
-cleaned_texts = [remove_metadata_from_string(str(item)) for item in kept]
-
-# # Print the cleaned texts
-# for clean in cleaned_texts:
-#     print(clean.encode('latin1').decode('utf8'))
-
-def decode_to_thai(text, encoding):
-    try:
-        return text.encode('latin1').decode(encoding)
-    except UnicodeDecodeError:
-        return "Decoding error with encoding: " + encoding
-
-page_content = '59\n\x1e\x17\x12\x0b\x0e\x1c\x18\x1aJ\x14B9#8\x13\x03\x1a\x07\x0b\x18\x02\x1a\t\x07\x18;\x07O\x1f ...'  # truncated for brevity
-
-# Try decoding with TIS-620
-thai_text_tis620 = decode_to_thai(page_content, 'tis-620')
-
-# Try decoding with cp874
-thai_text_cp874 = decode_to_thai(page_content, 'cp874')
-
-print("TIS-620 Decoded Text:\n", thai_text_tis620)
-print("\nCP874 Decoded Text:\n", thai_text_cp874)
-
-# index = 0
-# for i in splits:
-#      # Encode the string to bytes
-#     bytes_text = str(i).encode('utf-8')
-#     # Assuming 'i' is a string that you want to encode and then decode
-#     # If you need to replace backslashes, do it here
-#     modified_i = str(bytes_text).replace('\\\\', '\\')
-#     # Decode the bytes back to string
-#     decoded_text = modified_i.decode('utf-8')
-    
-#     print(decoded_text)
-
- 
- 
-# print('',str.join(res))
-
- 
-
-
-# text = 'gr\\xc3\\xa9gory'
-# # Convert the string representation of bytes to actual bytes
-# bytes_text = bytes(splits, 'utf-8')
-# # Now decode the bytes
-# decoded_text = bytes_text.decode('utf-8')
-
-# If you want to interpret the string as bytes encoded in latin1 and then decode
-# print('gr\xc3\xa9gory'.encode('latin1').decode('utf8'))
+chunked_documents = text_splitter.split_documents(documents)
+print(chunked_documents)
 
 persist_directory = 'docs/chroma/'
 embedding = OpenAIEmbeddings()
 vectordb = Chroma.from_documents(
-        documents=splits,
+        documents=chunked_documents,
         embedding=embedding,
         persist_directory=persist_directory
     )
 
 llm = ChatOpenAI(model_name=llm_name, temperature=0.9)
 
-    # question = "โรคผื่นภูมิแพ้ผิวหนัง"
-    # docs = vectordb.similarity_search(question,k=6)
-
-    #------------------------------------------------------------
-
-    # template = """
-    #   {Your_Prompt}
-    
-    #   CONTEXT:
-    #   {context}
-    
-    #   QUESTION: 
-    #   {query}
-
-    #   CHAT HISTORY: 
-    #   {chat_history}
-    
-    #   ANSWER:
-    #   """
-
-    # prompt = PromptTemplate(input_variables=["chat_history", "query", "context"], template=template)
-#----------------------------------------------------------------------------------
 template = """
-Use the following context (delimited by <ctx></ctx>) and the chat history (delimited by <hs></hs>) to answer the question and if qauetion is out of context just answer nautural in conversation:
+I want you to act as a patient. You will describe your symptoms and you will provide a details of what your symptoms is. Do not write explanations.
+
+For the purpose of this conversation, your responses will be centered around your knowledge and experience. Users will ask you questions and you’ll be provided with relevant snippets. Your task is to answer these questions using your typical style and language.
+
+Always answer the query directly in as few words as possible. Only provide long-form answers if the users has specifically asked for an answer that requires a lot of text. Assess the provided context to decide if it’s useful/relevant to the questions. If not, then respond with “I don’t know”. When it comes to healthcare and treatment, use only the information provided in the context. Do not use your general knowledge to generate new or expanded topics.
+
+NEVER mention the context snippets you’re provided with. It should seem like you already posses this information and are merely sharing your knowledge. Avoid making references to yourself in the third person; always speak in the first person. You are in an ongoing conversation with the user.
+
+You will also be provide with the recent chat history as context. Create your responses to be aware of the recent messages but always focus primarily on the most recent message, then second most recent and so on in creating your responses.:
 ------
 <ctx>
 {context}
@@ -183,22 +97,29 @@ qa = RetrievalQA.from_chain_type(
             input_key="question"),
     }
 )
- 
-# for i in range(5):
-#     query = input('Enter ')
-#     re = qa.run({f"query": query})
-#     print(re)
+
+# @app.route('/data',method=['POST'])
+# def send(): 
+for i in range(5):
+    query = input('Enter ')
+    re = qa.run({f"query": query})
+    print(re)
+    # return re
+# if __name__ == '__main__':
+#     host = socket.gethostbyname(socket.gethostname())
+#     app.run(debug=True, host=host, port=5001)
+    
 #----------------------------------------------------------------------------
-memory = ConversationBufferMemory(memory_key="chat_history", input_key="query")
-    # chain = load_qa_chain(ChatOpenAI(temperature=0), chain_type="stuff", memory=memory, prompt=prompt)
+# memory = ConversationBufferMemory(memory_key="chat_history", input_key="query")
+#     # chain = load_qa_chain(ChatOpenAI(temperature=0), chain_type="stuff", memory=memory, prompt=prompt)
 
-    #----------------------------------------------------------------------------------
+#     #----------------------------------------------------------------------------------
 
-qa_chain = ConversationalRetrievalChain.from_llm(
-        ChatOpenAI(),
-        vectordb.as_retriever(search_kwargs={'k': 1}),
-        return_source_documents=True
-)
+# qa_chain = ConversationalRetrievalChain.from_llm(
+#         ChatOpenAI(),
+#         vectordb.as_retriever(search_kwargs={'k': 1}),
+#         return_source_documents=True
+# )
 
 # chat_history = []
 
