@@ -7,7 +7,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import RetrievalQA
 from langchain.document_loaders import PyPDFLoader
 from langchain.chains.question_answering import load_qa_chain
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter,CharacterTextSplitter
 import os
 import openai
 import sys
@@ -30,48 +30,21 @@ persist_directory = 'docs/chroma/'
 embedding = OpenAIEmbeddings()
 
 
-if os.path.exists(docs_directory) and os.path.isdir(docs_directory):
-    # Load documents from 'docs' directory
-    vectordb = Chroma(
-    embedding_function=embedding,
-    persist_directory=persist_directory
-)
-else:
-    # Load and split PDFs as before
-    documents = []
-    for file in os.listdir('data'):
+for file in os.listdir('data'):
         if file.endswith('.pdf'):
             pdf_path = './data/' + file
             loader = PyPDFLoader(pdf_path)
             documents.extend(loader.load())
 
-    text_splitter = RecursiveCharacterTextSplitter(
+text_splitter = RecursiveCharacterTextSplitter(
             chunk_size = 1500,
-            chunk_overlap = 10
+            chunk_overlap  = 10,
+            length_function = len,
+            is_separator_regex = False,
         )
-cleaned_documents = []
-
-for document in documents:
-    # Accessing 'page_content' attribute of the Document object
-    if hasattr(document, 'page_content'):
-        clean_text = document.page_content.replace('\n', ' ').replace('\x00', '')
-        cleaned_documents.append(clean_text)
-    else:
-        # Handle the case where 'page_content' attribute is not present
-        print("Document object does not have a 'page_content' attribute.")
-
-# Now 'cleaned_documents' contains the modified text of each document
-# Print the first document as an example
-if cleaned_documents:
-    print(cleaned_documents[0])
-else:
-    print("No documents were cleaned.")
-
-
-
 
 documents = text_splitter.split_documents(documents)
-print(documents[0])
+print(documents)
 vectordb = Chroma.from_documents(
     documents=documents,
     embedding=embedding,
@@ -129,8 +102,6 @@ qa = RetrievalQA.from_chain_type(
 for i in range(5):
     query = input('Enter ')
     qa.run({f"query": query})
-    re = qa.run({f"query": query})
-    print(re)
     # return re
 # if __name__ == '__main__':
 #     host = socket.gethostbyname(socket.gethostname())
